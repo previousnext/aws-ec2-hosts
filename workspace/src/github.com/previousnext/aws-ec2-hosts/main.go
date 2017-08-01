@@ -1,8 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"time"
 
+	"fmt"
 	"github.com/lextoumbourou/goodhosts"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -17,42 +19,58 @@ var (
 func main() {
 	kingpin.Parse()
 
-	// Lookup the EC2 instances with a tag.
-	instances, err := queryInstanaces(*cliRegion, *cliFilter, *cliTag)
-	if err != nil {
-		panic(err)
-	}
+	log.Println("Starting EC2 hosts sync")
 
-	// Load this instances host file so we can update it.
-	hostFile, err := goodhosts.NewHosts()
-	if err != nil {
-		panic(err)
-	}
+	limiter := time.Tick(time.Minute)
 
-	// Add the records to the hosts file.
-	for _, instance := range instances {
-		name, err := hostname(*cliTpl, instance.Name)
+	for {
+		<-limiter
+
+		// Lookup the EC2 instances with a tag.
+		instances, err := queryInstanaces(*cliRegion, *cliFilter, *cliTag)
 		if err != nil {
-			fmt.Println("unable create hostname:", err)
+			log.Println("failed to query instances:", err)
 			continue
 		}
 
-		// Clear out the hostfile records which relate to our EC2 query.
-		for _, line := range hostFile.Lines {
-			if contains(line.Hosts, name) {
-				hostFile.Remove(line.IP, name)
+		// Load this instances host file so we can update it.
+		hostFile, err := goodhosts.NewHosts()
+		if err != nil {
+			log.Println("failed to load hosts file:", err)
+			continue
+		}
+
+		// Add the records to the hosts file.
+		for _, instance := range instances {
+			name, err := hostname(*cliTpl, instance.Name)
+			if err != nil {
+				log.Println("unable create hostname:", err)
+				continue
+			}
+
+			// Clear out the hostfile records which relate to our EC2 query.
+			for _, line := range hostFile.Lines {
+				if contains(line.Hosts, name) {
+					hostFile.Remove(line.IP, name)
+				}
+			}
+
+			fmt.Println("adding host:", name, "/", instance.IP)
+
+			err = hostFile.Add(instance.IP, name)
+			if err != nil {
+				log.Println("unable to sync hosts record:", instance.Name, "/", instance.IP)
+				continue
 			}
 		}
 
-		err = hostFile.Add(instance.IP, name)
+		// Write the file back to disk.
+		err = hostFile.Flush()
 		if err != nil {
-			fmt.Println("unable to sync hosts record:", instance.Name, "/", instance.IP)
+			log.Println("failed to write file hosts file:", err)
+			continue
 		}
-	}
 
-	// Write the file back to disk.
-	err = hostFile.Flush()
-	if err != nil {
-		panic(err)
+		log.Println("updated hosts file")
 	}
 }
