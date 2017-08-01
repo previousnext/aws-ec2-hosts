@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"fmt"
 	"github.com/lextoumbourou/goodhosts"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -19,7 +18,7 @@ var (
 func main() {
 	kingpin.Parse()
 
-	log.Println("Starting EC2 hosts sync")
+	log.Println("starting EC2 hosts sync")
 
 	limiter := time.Tick(time.Minute)
 
@@ -55,7 +54,7 @@ func main() {
 				}
 			}
 
-			fmt.Println("adding host:", name, "/", instance.IP)
+			log.Println("adding host:", name, "/", instance.IP)
 
 			err = hostFile.Add(instance.IP, name)
 			if err != nil {
