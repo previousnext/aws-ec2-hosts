@@ -1,5 +1,5 @@
-PNX Project: Go Edition
-=======================
+AWS: EC2 Hosts
+==============
 
 [![CircleCI](https://circleci.com/gh/previousnext/aws-ec2-hosts.svg?style=svg)](https://circleci.com/gh/previousnext/aws-ec2-hosts)
 
